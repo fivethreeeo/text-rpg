@@ -3,6 +3,9 @@
 const $startScreen = document.querySelector('#start-screen');
 const $gameMenu = document.querySelector('#game-menu');
 const $battleMenu = document.querySelector('#battle-menu');
+const $startScreenInput = document.querySelector('#start-screen input');
+const $battleMenuInput = document.querySelector('#battle-menu input');
+const $gameMenuInput = document.querySelector('#game-menu input');
 const $heroName = document.querySelector('#hero-name');
 const $heroLevel = document.querySelector('#hero-level');
 const $heroHp = document.querySelector('#hero-hp');
@@ -49,15 +52,23 @@ class Game {
       $startScreen.style.display = 'block';
       $gameMenu.style.display = 'none';
       $battleMenu.style.display = 'none';
+      this.inputReset($startScreenInput);
     } else if (screen === 'game') {
       $startScreen.style.display = 'none';
       $gameMenu.style.display = 'block';
       $battleMenu.style.display = 'none';
+      this.inputReset($gameMenuInput);
     } else if (screen === 'battle') {
       $startScreen.style.display = 'none';
       $gameMenu.style.display = 'none';
       $battleMenu.style.display = 'block';
+      this.inputReset($battleMenuInput);
     }
+  }
+
+  inputReset(inputTag) {
+    inputTag.value = '';
+    inputTag.focus();
   }
 
   updateHeroStat() {
@@ -116,8 +127,13 @@ class Game {
       this.showMessage(`몬스터와 마주쳤다. ${this.monster.name}인 것 같다.`);
     } else if (input === '2') {
       // 휴식
+      this.hero.hp = this.hero.maxHp;
+      this.updateHeroStat();
+      this.showMessage(`체력을 모두 회복했다.`);
     } else if (input === '3') {
       // 종료
+      this.quit();
+      this.showMessage(`게임을 종료했습니다.`);
     }
     console.log(game);
   };
@@ -126,9 +142,10 @@ class Game {
     event.preventDefault();
     const input = event.target['battle-input'].value;
 
+    const { hero, monster } = this;
+
     if (input === '1') {
       // 공격
-      const { hero, monster } = this;
       hero.attack(monster);
       monster.attack(hero);
 
@@ -149,8 +166,24 @@ class Game {
       this.updateMonsterStat();
     } else if (input === '2') {
       // 회복
+      const healAmount = Math.min(20, hero.maxHp - hero.hp);
+      hero.hp += healAmount;
+      monster.attack(hero);
+      if (hero.hp <= 0) {
+        this.showMessage(`${hero.name}은 과도한 스트레스로 사망하였다...`);
+        this.quit();
+        return;
+      }
+      this.showMessage(
+        `체력을 ${healAmount} 회복하고, ${monster.att}의 데미지를 받았다.`
+      );
+      this.updateHeroStat();
     } else if (input === '3') {
       // 도망
+      this.showMessage(`${monster.name}를 피해 무사히 도망쳤다.`);
+      this.monster = null;
+      this.updateMonsterStat();
+      this.changeScreen('game');
     }
     console.log(game);
   };
@@ -176,9 +209,13 @@ class Hero extends Unit {
     this.lev = 1;
   }
 
-  heal(monster) {
+  heal() {
+    const damage = this.maxHp - this.hp;
+    if (damage < 20) {
+      this.healMax();
+      return;
+    }
     this.hp += 20;
-    this.hp -= monster.att;
   }
 
   getXp(xp) {
@@ -201,8 +238,9 @@ class Monster extends Unit {
   }
 }
 
-// 게임 시작
+// 페이지 로드
 let game = null;
+$startScreenInput.focus();
 
 $startScreen.addEventListener('submit', (event) => {
   event.preventDefault();
